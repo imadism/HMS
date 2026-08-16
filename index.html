@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GrandStay - Luxury Hotel Reservation & Property Management System</title>
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase/config.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <section id="auth-screen" class="auth-screen" aria-live="polite">
+    <div class="auth-card">
+      <div class="auth-logo"><i class="fa-solid fa-hotel"></i></div>
+      <h1>GrandStay</h1>
+      <p class="auth-subtitle">Sign in to your team workspace</p>
+      <form id="login-form" class="auth-form">
+        <label for="login-email">Email address</label>
+        <input id="login-email" class="form-control" type="email" autocomplete="email" required>
+        <label for="login-password">Password</label>
+        <input id="login-password" class="form-control" type="password" autocomplete="current-password" required>
+        <p id="auth-message" class="auth-message" role="status"></p>
+        <button id="btn-login" class="btn btn-primary auth-submit" type="submit">Sign in</button>
+      </form>
+      <div id="organization-onboarding" class="organization-onboarding" hidden>
+        <h2>Create your workspace</h2>
+        <p>This account is not linked to a company workspace yet.</p>
+        <form id="organization-form" class="auth-form">
+          <label for="organization-name">Company name</label>
+          <input id="organization-name" class="form-control" type="text" minlength="2" maxlength="120" required>
+          <button class="btn btn-primary auth-submit" type="submit">Create workspace</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- App Wrapper -->
+  <div id="app-shell" class="app-container" hidden>
+
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-logo">
+          <i class="fa-solid fa-hotel"></i>
+        </div>
+        <div class="brand-info">
+          <h2>GrandStay</h2>
+          <span>Reservation & PMS Suite</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard" data-perm="all">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Dashboard & Market</span>
+        </button>
+        <button class="nav-item" data-tab="new-reservation" data-perm="res">
+          <i class="fa-solid fa-calendar-plus"></i>
+          <span>New Reservation</span>
+        </button>
+        <button class="nav-item" data-tab="reservations-list" data-perm="res">
+          <i class="fa-solid fa-list-check"></i>
+          <span>Reservations Master</span>
+        </button>
+        <button class="nav-item" data-tab="clients" data-perm="res">
+          <i class="fa-solid fa-users"></i>
+          <span>Clients & Agents</span>
+        </button>
+        <button class="nav-item" data-tab="payments" data-perm="acct">
+          <i class="fa-solid fa-credit-card"></i>
+          <span>Payments & Cashier</span>
+        </button>
+        <button class="nav-item" data-tab="account-statement" data-perm="acct">
+          <i class="fa-solid fa-file-invoice-dollar"></i>
+          <span>Account Statements</span>
+        </button>
+        <button class="nav-item" data-tab="reports" data-perm="reports">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Reports Engine</span>
+        </button>
+        <button class="nav-item" data-tab="users" data-perm="admin">
+          <i class="fa-solid fa-user-gear"></i>
+          <span>User Management</span>
+        </button>
+        <button class="nav-item" data-tab="base-setup" data-perm="admin">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Base Setup & Master Data</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-pill">
+          <div class="avatar"><i class="fa-solid fa-user-shield"></i></div>
+          <div class="user-details">
+            <span class="user-name" id="sb-user-name">Manager Operations</span>
+            <span class="user-role" id="sb-user-role">Administrator</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Top Header Navigation Bar -->
+      <header class="top-header">
+        <div class="header-left">
+          <h1 id="page-title">Dashboard & Market Insights</h1>
+          <p id="page-subtitle">Real-time occupancy, revenue analytics, and market trends</p>
+        </div>
+
+        <div class="header-right">
+          <!-- Active User Role Selector -->
+          <div class="active-user-switcher" title="Switch Active System User Role">
+            <i class="fa-solid fa-circle-user icon text-gold"></i>
+            <span class="user-switch-label">Logged User:</span>
+            <select id="header-user-select" class="header-select">
+              <!-- Injected via JS -->
+            </select>
+          </div>
+
+          <span id="cloud-sync-status" class="cloud-sync-status">Cloud sync ready</span>
+          <button class="btn btn-secondary btn-sm" id="btn-logout" type="button"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
+
+
+          <button class="btn btn-primary" id="btn-quick-new-res">
+            <i class="fa-solid fa-plus"></i> New Reservation
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW 1: DASHBOARD & MARKET INSIGHTS -->
+      <section id="view-dashboard" class="view-panel active">
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card gold">
+            <div class="kpi-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-title">Total Revenue (Sales)</span>
+              <h3 id="kpi-total-revenue">0.00 SAR</h3>
+              <span class="kpi-subtitle" id="kpi-revenue-count">0 Bookings</span>
+            </div>
+          </div>
+
+          <div class="kpi-card emerald">
+            <div class="kpi-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-title">Net Profit</span>
+              <h3 id="kpi-net-profit">0.00 SAR</h3>
+              <span class="kpi-subtitle" id="kpi-profit-margin">0% Avg Margin</span>
+            </div>
+          </div>
+
+          <div class="kpi-card blue">
+            <div class="kpi-icon"><i class="fa-solid fa-bed"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-title">Active Reservations</span>
+              <h3 id="kpi-active-res">0</h3>
+              <span class="kpi-subtitle" id="kpi-res-status">0 Definite / 0 Tentative</span>
+            </div>
+          </div>
+
+          <div class="kpi-card purple">
+            <div class="kpi-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+            <div class="kpi-content">
+              <span class="kpi-title">Payments Received</span>
+              <h3 id="kpi-payments-received">0.00 SAR</h3>
+              <span class="kpi-subtitle" id="kpi-pending-balance">0.00 SAR Ledger Pending</span>
+            </div>
+          </div>
+        </div>
+        <!-- Dashboard Split Row: Market Stats & Worldwide Holiday Calendar -->
+        <div class="dashboard-row">
+
+          <!-- Market Statistics Widget (Makkah & Madina Trends) -->
+          <div class="card market-stats-card">
+            <div class="card-header">
+              <div class="card-header-title">
+                <i class="fa-solid fa-hotel text-gold"></i>
+                <h3>Makkah & Madina Market Statistics</h3>
+              </div>
+              <span class="badge badge-pulse"><i class="fa-solid fa-globe"></i> Live Market Insights</span>
+            </div>
+            <div class="card-body">
+              <div class="city-market-tabs">
+                <button class="city-tab active" data-city="makkah"><i class="fa-solid fa-kaaba"></i> Makkah Al-Mukarramah</button>
+                <button class="city-tab" data-city="madina"><i class="fa-solid fa-mosque"></i> Al-Madina Al-Munawwarah</button>
+              </div>
+
+              <!-- Makkah Market Data -->
+              <div id="market-makkah" class="city-market-content active">
+                <div class="market-metrics-grid">
+                  <div class="market-metric">
+                    <span class="metric-label">Avg Occupancy Rate</span>
+                    <div class="metric-val-row">
+                      <span class="metric-val text-gold">88.5%</span>
+                      <span class="trend-up"><i class="fa-solid fa-arrow-up"></i> +4.2%</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-fill gold" style="width: 88.5%;"></div></div>
+                  </div>
+
+                  <div class="market-metric">
+                    <span class="metric-label">Average Daily Rate (ADR)</span>
+                    <div class="metric-val-row">
+                      <span class="metric-val">840 SAR</span>
+                      <span class="metric-sub">/ Night</span>
+                    </div>
+                    <span class="metric-footer"><i class="fa-solid fa-chart-line"></i> Peak Season Projection</span>
+                  </div>
+
+                  <div class="market-metric">
+                    <span class="metric-label">RevPAR (Revenue Per Room)</span>
+                    <div class="metric-val-row">
+                      <span class="metric-val text-emerald">743.40 SAR</span>
+                    </div>
+                    <span class="metric-footer"><i class="fa-solid fa-check"></i> High Demand Zone</span>
+                  </div>
+                </div>
+
+                <div class="market-notes">
+                  <div class="note-box">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <div>
+                      <strong>Clock Tower & Central Zone Demand:</strong> High demand driven by international Umrah groups. Recommended markup: +15%.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Madina Market Data -->
+              <div id="market-madina" class="city-market-content">
+                <div class="market-metrics-grid">
+                  <div class="market-metric">
+                    <span class="metric-label">Avg Occupancy Rate</span>
+                    <div class="metric-val-row">
+                      <span class="metric-val text-emerald">92.0%</span>
+                      <span class="trend-up"><i class="fa-solid fa-arrow-up"></i> +6.1%</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-fill emerald" style="width: 92.0%;"></div></div>
+                  </div>
+
+                  <div class="market-metric">
+                    <span class="metric-label">Average Daily Rate (ADR)</span>
+                    <div class="metric-val-row">
+                      <span class="metric-val">680 SAR</span>
+                      <span class="metric-sub">/ Night</span>
+                    </div>
+                    <span class="metric-footer"><i class="fa-solid fa-chart-line"></i> Northern Central Area Peak</span>
+                  </div>
+
+                  <div class="market-metric">
+                    <span class="metric-label">RevPAR (Revenue Per Room)</span>
+                    <div class="metric-val-row">
+                      <span class="metric-val text-emerald">625.60 SAR</span>
+                    </div>
+                    <span class="metric-footer"><i class="fa-solid fa-check"></i> 95%+ Weekend Occupancy</span>
+                  </div>
+                </div>
+
+                <div class="market-notes">
+                  <div class="note-box">
+                    <i class="fa-solid fa-moon text-blue"></i>
+                    <div>
+                      <strong>Markaziyah Area Insights:</strong> High booking volume from South-East Asia & European travel agencies.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Worldwide & School Holiday Calendar Widget -->
+          <div class="card holiday-calendar-card">
+            <div class="card-header">
+              <div class="card-header-title">
+                <i class="fa-solid fa-calendar-days text-blue"></i>
+                <h3>Worldwide & School Holiday Calendar</h3>
+              </div>
+              <div class="calendar-nav-btns">
+                <button id="cal-prev-month" class="btn-icon"><i class="fa-solid fa-chevron-left"></i></button>
+                <span id="cal-month-year-title">August 2026</span>
+                <button id="cal-next-month" class="btn-icon"><i class="fa-solid fa-chevron-right"></i></button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="holiday-tags">
+                <span class="tag tag-all active" data-filter="all">All Events</span>
+                <span class="tag tag-ramadan" data-filter="religious">Ramadan & Hajj</span>
+                <span class="tag tag-school" data-filter="school">School Breaks</span>
+                <span class="tag tag-public" data-filter="public">Public Holidays</span>
+              </div>
+
+              <div class="calendar-container">
+                <div class="calendar-weekdays">
+                  <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                </div>
+                <div id="calendar-days-grid" class="calendar-days">
+                  <!-- JS injected -->
+                </div>
+              </div>
+
+              <div class="upcoming-events-list">
+                <h4><i class="fa-solid fa-bullhorn text-gold"></i> Key Seasonal Travel Events</h4>
+                <div id="upcoming-events-container">
+                  <!-- Dynamically populated -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Recent Reservations Table Quick View -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              <h3>Recent Bookings Overview</h3>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="app.switchTab('reservations-list')">View All Master List</button>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="data-table" id="dashboard-recent-table">
+                <thead>
+                  <tr>
+                    <th>Res ID</th>
+                    <th>Hotel Name</th>
+                    <th>Guest Name</th>
+                    <th>Agent / Source</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Rooms Breakdown</th>
+                    <th>Status</th>
+                    <th>Selling Total</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="dashboard-recent-tbody">
+                  <!-- JS injected -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- VIEW 2: NEW RESERVATION ENTRY FORM -->
+      <section id="view-new-reservation" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-file-pen text-gold"></i>
+              <h3 id="res-form-title">Create New Hotel Reservation</h3>
+            </div>
+            <span class="badge badge-gold" id="res-id-badge">ID: System Auto Generated</span>
+          </div>
+
+          <div class="card-body">
+            <form id="reservation-form">
+              <input type="hidden" id="res-db-id" value="">
+
+              <!-- Section 1: Basic Identifiers -->
+              <div class="form-section-title">
+                <i class="fa-solid fa-hashtag"></i> 1. Reservation Header & Status
+              </div>
+              <div class="form-grid cols-3">
+                <div class="form-group">
+                  <label for="res-system-id">System Reservation #</label>
+                  <input type="text" id="res-system-id" class="form-control readonly-input" readonly placeholder="Auto Generated">
+                </div>
+
+                <div class="form-group">
+                  <label for="res-hotel-ref">Hotel Reservation Ref # <span class="required">*</span></label>
+                  <input type="text" id="res-hotel-ref" class="form-control" placeholder="e.g. HTL-884920" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="res-status">Booking Status <span class="required">*</span></label>
+                  <select id="res-status" class="form-control" required>
+                    <option value="Tentative">Tentative (Hold / Pending Confirmation)</option>
+                    <option value="Definite" selected>Definite (Confirmed Booking)</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Section 2: Hotel & Guest Information -->
+              <div class="form-section-title mt-4">
+                <i class="fa-solid fa-building-user"></i> 2. Hotel & Guest Details
+              </div>
+              <div class="form-grid cols-3">
+                <div class="form-group">
+                  <label for="res-hotel-name">Hotel Name <span class="required">*</span></label>
+                  <select id="res-hotel-name" class="form-control" required>
+                    <!-- Populated from base data -->
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="res-guest-name">Guest Full Name <span class="required">*</span></label>
+                  <input type="text" id="res-guest-name" class="form-control" placeholder="Enter guest primary name" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="res-guest-nationality">Guest Nationality <span class="required">*</span></label>
+                  <select id="res-guest-nationality" class="form-control" required>
+                    <!-- Populated from Base Setup Master Nationalities -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="res-agent-name">Travel Agent Directory</label>
+                  <select id="res-agent-name" class="form-control">
+                    <!-- Populated from travel agents directory -->
+                  </select>
+                </div>
+              </div>
+
+              <!-- Section 3: Booking Source / Travel Agent -->
+              <div class="form-section-title mt-4">
+                <i class="fa-solid fa-briefcase"></i> 3. Booking Source & Travel Agent
+              </div>
+              <div class="form-grid cols-2">
+                <div class="form-group">
+                  <label for="res-booking-type">Booking Source Channel <span class="required">*</span></label>
+                  <select id="res-booking-type" class="form-control" required>
+                    <option value="Direct">Direct through Hotel (Direct Client)</option>
+                    <option value="Travel Agent">Through a Travel Agent</option>
+                  </select>
+                </div>
+
+              </div>
+
+              <!-- Section 4: Stay Dates & Meal Plan -->
+              <div class="form-section-title mt-4">
+                <i class="fa-solid fa-calendar-days"></i> 4. Stay Schedule & Meal Plan
+              </div>
+              <div class="form-grid cols-3">
+                <div class="form-group">
+                  <label for="res-checkin">Check-In Date <span class="required">*</span></label>
+                  <input type="date" id="res-checkin" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="res-checkout">Check-Out Date <span class="required">*</span></label>
+                  <input type="date" id="res-checkout" class="form-control" required>
+                </div>
+
+                <div class="form-group">
+                  <label for="res-nights">Total Nights</label>
+                  <input type="number" id="res-nights" class="form-control readonly-input" readonly value="1">
+                </div>
+              </div>
+
+              <div class="form-group mt-2">
+                <label for="res-meal-plan">Meal Plan <span class="required">*</span></label>
+                <select id="res-meal-plan" class="form-control" required>
+                  <option value="RO">RO - Room Only</option>
+                  <option value="BB" selected>BB - Bed & Breakfast</option>
+                  <option value="HB">HB - Half Board (Breakfast & Dinner)</option>
+                  <option value="FB Far East">FB - Far East</option>
+                  <option value="Suhoor">Suhoor</option>
+                  <option value="Iftar">Iftar</option>
+                  <option value="FB International">FB - International</option>
+                </select>
+              </div>
+
+              <!-- Section 5: MULTI-ROOM TYPE PRICING & RATES TABLE -->
+              <div class="form-section-title mt-4">
+                <i class="fa-solid fa-table-list"></i> 5. Multi-Room Configuration & Nightly Rate Table
+              </div>
+
+              <div class="multi-room-card">
+                <div class="multi-room-header">
+                  <p class="text-muted small m-0">A booking can contain multiple room types. Add each room type below with its cost price and sale price per night.</p>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-add-room-line">
+                    <i class="fa-solid fa-plus"></i> Add Room Type Line
+                  </button>
+                </div>
+
+                <div class="table-responsive mt-3">
+                  <table class="data-table multi-room-table">
+                    <thead>
+                      <tr>
+                        <th style="width: 25%;">Room Type</th>
+                        <th style="width: 12%;">Qty (Rooms)</th>
+                        <th style="width: 18%;">Cost / Night (SAR)</th>
+                        <th style="width: 18%;">Sale Rate / Night (SAR)</th>
+                        <th style="width: 15%;">Total Line Sale</th>
+                        <th style="width: 12%;">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody id="multi-rooms-tbody">
+                      <!-- Dynamically injected room type rows -->
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Financial Calculation & Discounts Banner -->
+                <div class="rates-calculator-card mt-3">
+                  <div class="rates-top-bar">
+                    <button type="button" class="btn btn-secondary btn-sm" id="btn-open-daily-rates">
+                      <i class="fa-solid fa-table-cells"></i> Daily Rate Breakdown Matrix...
+                    </button>
+                    <span id="custom-rates-indicator" class="text-muted small">Uniform room rates applied</span>
+                  </div>
+
+                  <div class="form-grid cols-3 mt-3">
+                    <div class="form-group">
+                      <label for="res-discount-amount">Discount Amount (SAR)</label>
+                      <input type="number" id="res-discount-amount" class="form-control" value="0.00" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                      <label for="res-vat-toggle">VAT Status & Tax</label>
+                      <select id="res-vat-toggle" class="form-control">
+                        <option value="Included" selected>VAT Included (15%)</option>
+                        <option value="Excluded">Add 15% VAT Extra</option>
+                        <option value="NoVAT">No VAT / Exempt</option>
+                      </select>
+                    </div>
+
+                    <div class="form-group">
+                      <label>Total Rooms Count</label>
+                      <input type="text" id="display-total-rooms-count" class="form-control readonly-input" readonly value="0 Rooms">
+                    </div>
+                  </div>
+
+                  <!-- Final Calculations Display -->
+                  <div class="financial-summary-banner mt-3">
+                    <div class="fin-box">
+                      <span>Total Purchase Cost</span>
+                      <strong id="display-cost">0.00 SAR</strong>
+                    </div>
+
+                    <div class="fin-box">
+                      <span>Final Billed Selling Total</span>
+                      <strong id="display-selling" class="text-gold">0.00 SAR</strong>
+                    </div>
+
+                    <div class="fin-box">
+                      <span>Estimated Net Profit</span>
+                      <strong id="display-profit" class="text-emerald">0.00 SAR</strong>
+                    </div>
+
+                    <div class="fin-box">
+                      <span>Profit Margin</span>
+                      <strong id="display-margin" class="text-blue">0.00%</strong>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Section 6: Extra Services -->
+              <div class="form-section-title mt-4">
+                <i class="fa-solid fa-utensils"></i> 6. Extra Services During Stay
+              </div>
+              <div class="multi-room-card mt-3">
+                <div class="multi-room-header">
+                  <p class="text-muted small m-0">Record chargeable extras taken during the stay, such as additional meals.</p>
+                  <button type="button" class="btn btn-secondary btn-sm" id="btn-add-extra-service"><i class="fa-solid fa-plus"></i> Add Extra Service</button>
+                </div>
+                <div class="table-responsive mt-3">
+                  <table class="data-table"><thead><tr><th>Service</th><th>Quantity</th><th>Cost / Unit (SAR)</th><th>Sale / Unit (SAR)</th><th>Total Sale</th><th>Action</th></tr></thead><tbody id="extra-services-tbody"></tbody></table>
+                </div>
+              </div>
+              <div class="form-section-title mt-4"><i class="fa-solid fa-comment-dots"></i> 7. Remarks & Special Requests</div>
+              <div class="form-group"><textarea id="res-remarks" class="form-control" rows="3" placeholder="Enter any special requests, Haram view preferences, bed preferences, transfer notes..."></textarea></div>
+
+              <!-- Action Buttons -->
+              <div class="form-actions mt-4">
+                <button type="submit" class="btn btn-primary btn-lg" id="btn-save-res">
+                  <i class="fa-solid fa-floppy-disk"></i> Save Reservation
+                </button>
+
+                <button type="button" class="btn btn-secondary btn-lg" id="btn-preview-confirmation" disabled>
+                  <i class="fa-solid fa-file-invoice"></i> Travel Agency Confirmation (With Rates)
+                </button>
+
+                <button type="button" class="btn btn-emerald btn-lg" id="btn-preview-guest-voucher" disabled>
+                  <i class="fa-solid fa-ticket"></i> Guest Check-In Voucher (No Rates)
+                </button>
+
+                <button type="button" class="btn btn-outline btn-lg" id="btn-reset-res-form">
+                  <i class="fa-solid fa-rotate-left"></i> Reset Form
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: RESERVATIONS MASTER LIST -->
+      <section id="view-reservations-list" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-list-check text-gold"></i>
+              <h3>Reservations Master Registry</h3>
+            </div>
+            <button class="btn btn-primary" onclick="app.switchTab('new-reservation')">
+              <i class="fa-solid fa-plus"></i> New Reservation
+            </button>
+          </div>
+
+          <div class="card-body">
+            <div class="filter-toolbar">
+              <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="filter-res-search" class="form-control" placeholder="Search Guest Name, Hotel, Res #, Ref #...">
+              </div>
+
+              <div class="filter-group">
+                <select id="filter-res-status" class="form-control">
+                  <option value="ALL">All Statuses</option>
+                  <option value="Definite">Definite</option>
+                  <option value="Tentative">Tentative</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+
+                <select id="filter-res-city" class="form-control">
+                  <option value="ALL">All Cities</option>
+                  <option value="Makkah">Makkah Hotels</option>
+                  <option value="Madina">Madina Hotels</option>
+                </select>
+
+                <select id="filter-res-source" class="form-control">
+                  <option value="ALL">All Sources</option>
+                  <option value="Direct">Direct Hotel</option>
+                  <option value="Travel Agent">Travel Agent</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive mt-3">
+              <table class="data-table" id="master-res-table">
+                <thead>
+                  <tr>
+                    <th>Res # / Hotel Ref</th>
+                    <th>Hotel Name</th>
+                    <th>Guest Name</th>
+                    <th>Source & Agent</th>
+                    <th>Dates (In - Out)</th>
+                    <th>Nights</th>
+                    <th>Multi-Room Breakdown</th>
+                    <th>Selling Total</th>
+                    <th>Profit</th>
+                    <th>Status</th>
+                    <th>Payment</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="master-res-tbody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: CLIENTS & AGENTS DIRECTORY -->
+      <section id="view-clients" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-users text-gold"></i>
+              <h3>Clients & Travel Agents Directory</h3>
+            </div>
+            <button class="btn btn-primary" id="btn-open-add-client">
+              <i class="fa-solid fa-user-plus"></i> Add New Client / Agent
+            </button>
+          </div>
+
+          <div class="card-body">
+            <div class="filter-toolbar">
+              <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="filter-client-search" class="form-control" placeholder="Search Client Name, Mobile, Email, Nationality...">
+              </div>
+
+              <div class="filter-group">
+                <select id="filter-client-type" class="form-control">
+                  <option value="ALL">All Client Types</option>
+                  <option value="Direct Client">Direct Client</option>
+                  <option value="Travel Agent">Travel Agent</option>
+                  <option value="Both">Both (Direct & Agent)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="table-responsive mt-3">
+              <table class="data-table" id="clients-table">
+                <thead>
+                  <tr>
+                    <th>Client / Agent Name</th>
+                    <th>Type / Classification</th>
+                    <th>Nationality</th>
+                    <th>Mobile</th>
+                    <th>Email</th>
+                    <th>City / Address</th>
+                    <th>Total Bookings</th>
+                    <th>Ledger Balance</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="clients-tbody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: PAYMENTS & CASHIER -->
+      <section id="view-payments" class="view-panel">
+        <div class="dashboard-row">
+
+          <div class="card half-width">
+            <div class="card-header">
+              <div class="card-header-title">
+                <i class="fa-solid fa-hand-holding-dollar text-emerald"></i>
+                <h3>Record Payment Entry</h3>
+              </div>
+            </div>
+            <div class="card-body">
+              <form id="payment-form">
+                <div class="form-group">
+                  <label for="pay-client-id">Select Client / Travel Agent <span class="required">*</span></label>
+                  <select id="pay-client-id" class="form-control" required>
+                    <!-- Populated via JS -->
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="pay-allocation-type">Payment Allocation Target <span class="required">*</span></label>
+                  <select id="pay-allocation-type" class="form-control" required>
+                    <option value="Reservation">Against Specific Reservation Number</option>
+                    <option value="Account Deposit">General Account Deposit / Credit</option>
+                  </select>
+                </div>
+
+                <div class="form-group" id="pay-res-group">
+                  <label for="pay-res-id">Select Reservation Number</label>
+                  <select id="pay-res-id" class="form-control">
+                    <!-- Populated based on selected client -->
+                  </select>
+                </div>
+
+                <div class="form-grid cols-2">
+                  <div class="form-group">
+                    <label for="pay-amount">Amount Paid (SAR) <span class="required">*</span></label>
+                    <input type="number" id="pay-amount" class="form-control" placeholder="0.00" step="0.01" required>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="pay-date">Payment Date <span class="required">*</span></label>
+                    <input type="date" id="pay-date" class="form-control" required>
+                  </div>
+                </div>
+
+                <div class="form-grid cols-2">
+                  <div class="form-group">
+                    <label for="pay-method">Payment Method <span class="required">*</span></label>
+                    <select id="pay-method" class="form-control" required>
+                      <option value="Cash">Cash Payment</option>
+                      <option value="Bank Transfer">Bank Wire Transfer</option>
+                      <option value="Credit Card">Credit / Debit Card</option>
+                      <option value="Cheque">Bank Cheque</option>
+                      <option value="Online Gateway">Online Gateway</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="pay-ref">Reference / Bank Transaction #</label>
+                    <input type="text" id="pay-ref" class="form-control" placeholder="e.g. TR-994820">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label for="pay-remarks">Payment Remarks / Notes</label>
+                  <input type="text" id="pay-remarks" class="form-control" placeholder="e.g. Deposit for Ramadan booking">
+                </div>
+
+                <button type="submit" class="btn btn-emerald btn-block btn-lg mt-3">
+                  <i class="fa-solid fa-check"></i> Post Payment Entry
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div class="card half-width">
+            <div class="card-header">
+              <div class="card-header-title">
+                <i class="fa-solid fa-receipt text-gold"></i>
+                <h3>Recent Payments Received Log</h3>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="data-table" id="payments-history-table">
+                  <thead>
+                    <tr>
+                      <th>Pay Date</th>
+                      <th>Client Name</th>
+                      <th>Res # / Target</th>
+                      <th>Method & Ref</th>
+                      <th>Amount Paid</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="payments-history-tbody">
+                    <!-- JS populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="dashboard-row mt-4">
+          <div class="card half-width">
+            <div class="card-header"><div class="card-header-title"><i class="fa-solid fa-money-bill-transfer text-rose"></i><h3>Record Payment Made</h3></div></div>
+            <div class="card-body">
+              <form id="payment-made-form">
+                <div class="form-grid cols-2">
+                  <div class="form-group"><label for="paid-recipient-type">Pay To</label><select id="paid-recipient-type" class="form-control"><option value="Hotel">Hotel</option><option value="Travel Agent">Travel Agent</option></select></div>
+                  <div class="form-group"><label for="paid-recipient">Recipient <span class="required">*</span></label><select id="paid-recipient" class="form-control" required></select></div>
+                </div>
+                <div class="form-grid cols-2">
+                  <div class="form-group"><label for="paid-res-id">Reservation</label><select id="paid-res-id" class="form-control"></select></div>
+                  <div class="form-group"><label for="paid-amount">Amount Paid (SAR) <span class="required">*</span></label><input type="number" id="paid-amount" class="form-control" min="0" step="0.01" required></div>
+                </div>
+                <div class="form-grid cols-2">
+                  <div class="form-group"><label for="paid-date">Payment Date <span class="required">*</span></label><input type="date" id="paid-date" class="form-control" required></div>
+                  <div class="form-group"><label for="paid-method">Method</label><select id="paid-method" class="form-control"><option>Bank Transfer</option><option>Cash</option><option>Credit Card</option><option>Cheque</option></select></div>
+                </div>
+                <div class="form-group"><label for="paid-ref">Reference / Notes</label><input type="text" id="paid-ref" class="form-control"></div>
+                <button class="btn btn-rose btn-block btn-lg mt-3" type="submit"><i class="fa-solid fa-check"></i> Post Payment Made</button>
+              </form>
+            </div>
+          </div>
+          <div class="card half-width"><div class="card-header"><div class="card-header-title"><i class="fa-solid fa-file-invoice-dollar text-rose"></i><h3>Payments Made Log</h3></div></div><div class="card-body p-0"><div class="table-responsive"><table class="data-table"><thead><tr><th>Date</th><th>Recipient</th><th>Reservation</th><th>Amount</th><th>Actions</th></tr></thead><tbody id="payments-made-tbody"></tbody></table></div></div></div>
+        </div>
+      </section>
+
+      <!-- VIEW 6: CLIENT ACCOUNT STATEMENTS (LEDGER) -->
+      <section id="view-account-statement" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-file-invoice-dollar text-gold"></i>
+              <h3>Client Account Statement (Financial Ledger)</h3>
+            </div>
+            <button class="btn btn-secondary" id="btn-print-statement">
+              <i class="fa-solid fa-print"></i> Print Statement
+            </button>
+          </div>
+
+          <div class="card-body">
+            <div class="statement-filter-bar">
+              <div class="form-group flex-2">
+                <label for="stmt-client-select">Select Client or Travel Agent</label>
+                <select id="stmt-client-select" class="form-control">
+                  <!-- Populated via JS -->
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="stmt-from-date">From Date</label>
+                <input type="date" id="stmt-from-date" class="form-control">
+              </div>
+
+              <div class="form-group">
+                <label for="stmt-to-date">To Date</label>
+                <input type="date" id="stmt-to-date" class="form-control">
+              </div>
+
+              <div class="form-group btn-align">
+                <button class="btn btn-primary" id="btn-generate-statement">
+                  <i class="fa-solid fa-rotate"></i> Generate Ledger
+                </button>
+              </div>
+            </div>
+
+            <div id="statement-paper" class="statement-paper mt-4">
+              <div class="stmt-header">
+                <div class="stmt-company">
+                  <h2>Verdan Travel Company</h2>
+                  <p>CR No. 7053582503 | Travel & Tourism License No. 73109830</p>
+                  <p>Madina, Al Jouma district, Abu Shoraih Al Khozami street</p>
+                </div>
+                <div class="stmt-title-box">
+                  <h1>STATEMENT OF ACCOUNT</h1>
+                  <span class="stmt-date-tag" id="stmt-generated-date">Date: 2026-08-05</span>
+                </div>
+              </div>
+
+              <div class="stmt-client-info-grid">
+                <div class="info-block">
+                  <span class="label">Account Name:</span>
+                  <strong id="stmt-client-name">-</strong>
+                </div>
+                <div class="info-block">
+                  <span class="label">Classification:</span>
+                  <span id="stmt-client-type" class="badge">-</span>
+                </div>
+                <div class="info-block">
+                  <span class="label">Contact Mobile:</span>
+                  <span id="stmt-client-mobile">-</span>
+                </div>
+                <div class="info-block">
+                  <span class="label">Email Address:</span>
+                  <span id="stmt-client-email">-</span>
+                </div>
+              </div>
+
+              <div class="stmt-summary-cards">
+                <div class="summary-card debit">
+                  <span>Total Billed (Debits)</span>
+                  <h3 id="stmt-total-debit">0.00 SAR</h3>
+                </div>
+                <div class="summary-card credit">
+                  <span>Total Paid (Credits)</span>
+                  <h3 id="stmt-total-credit">0.00 SAR</h3>
+                </div>
+                <div class="summary-card balance">
+                  <span>Net Outstanding Balance</span>
+                  <h3 id="stmt-net-balance">0.00 SAR</h3>
+                </div>
+              </div>
+
+              <div class="table-responsive mt-4">
+                <table class="stmt-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Reference / Res #</th>
+                      <th>Description & Details</th>
+                      <th class="text-right">Debit (SAR)</th>
+                      <th class="text-right">Credit (SAR)</th>
+                      <th class="text-right">Balance (SAR)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stmt-ledger-tbody">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="stmt-footer">
+                <p><strong>Note:</strong> All payments made are reflected in SAR currency. Please verify your statement and report any discrepancies within 7 days of statement generation.</p>
+                <div class="signatures-row">
+                  <div>Prepared By: ___________________</div>
+                  <div>Authorized Signatory: ___________________</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 7: REPORTS ENGINE -->
+      <section id="view-reports" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-chart-pie text-gold"></i>
+              <h3>Operational & Financial Reports Engine</h3>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <div class="report-tabs">
+              <button class="report-tab active" data-report="arrivals">
+                <i class="fa-solid fa-plane-arrival"></i> Daily Arrivals & Departures
+              </button>
+              <button class="report-tab" data-report="revenue">
+                <i class="fa-solid fa-chart-line"></i> Revenue & Profitability
+              </button>
+              <button class="report-tab" data-report="collections">
+                <i class="fa-solid fa-money-bill-wave"></i> Payments Received Log
+              </button>
+              <button class="report-tab" data-report="occupancy">
+                <i class="fa-solid fa-hotel"></i> Room Type & Occupancy Breakdown
+              </button>
+            </div>
+
+            <div class="report-filter-bar mt-3">
+              <div class="form-group">
+                <label for="rpt-date-picker">Filter Date</label>
+                <input type="date" id="rpt-date-picker" class="form-control">
+              </div>
+
+              <div class="form-group">
+                <label for="rpt-hotel-filter">Hotel Filter</label>
+                <select id="rpt-hotel-filter" class="form-control">
+                  <option value="ALL">All Hotels</option>
+                  <!-- Injected -->
+                </select>
+              </div>
+
+              <button class="btn btn-primary btn-align" id="btn-run-report">
+                <i class="fa-solid fa-filter"></i> Run Report
+              </button>
+              <button class="btn btn-secondary btn-align" id="btn-export-report-pdf">
+                <i class="fa-solid fa-file-pdf"></i> Export PDF
+              </button>
+            </div>
+
+            <div id="report-output-container" class="mt-4">
+              <!-- JS Injected -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 8: USER MANAGEMENT & ACCESS CONTROL MODULE -->
+      <section id="view-users" class="view-panel">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-user-gear text-gold"></i>
+              <h3>User Accounts & Role Permissions</h3>
+            </div>
+            <button class="btn btn-primary" id="btn-open-add-user">
+              <i class="fa-solid fa-user-plus"></i> Add New System User
+            </button>
+          </div>
+
+          <div class="card-body">
+            <p class="text-muted small mb-3">Define system access roles (Administrator, Reservation Agent, Accountant, View Only). You can switch between active user profiles from the top navigation bar.</p>
+
+            <div class="table-responsive">
+              <table class="data-table" id="users-table">
+                <thead>
+                  <tr>
+                    <th>Full Name</th>
+                    <th>Username</th>
+                    <th>Email Address</th>
+                    <th>Assigned Access Role</th>
+                    <th>Account Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="users-tbody">
+                  <!-- Injected via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 9: BASE SETUP & MASTER DATA -->
+      <section id="view-base-setup" class="view-panel">
+        <div class="dashboard-row">
+
+          <!-- Hotels Management Card -->
+          <div class="card half-width">
+            <div class="card-header">
+              <div class="card-header-title">
+                <i class="fa-solid fa-hotel text-gold"></i>
+                <h3>Hotels Master Data</h3>
+              </div>
+              <button class="btn btn-primary btn-sm" id="btn-open-add-hotel">
+                <i class="fa-solid fa-plus"></i> Add New Hotel
+              </button>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Hotel Name</th>
+                      <th>City</th>
+                      <th>Star Rating</th>
+                      <th>Contact Number</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="hotels-master-tbody">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Master Nationalities Data -->
+          <div class="card half-width">
+            <div class="card-header">
+              <div class="card-header-title">
+                <i class="fa-solid fa-flag text-blue"></i>
+                <h3>Master Nationalities Setup</h3>
+              </div>
+              <div class="filter-group">
+                <button class="btn btn-secondary btn-sm" id="btn-add-nationality">
+                  <i class="fa-solid fa-plus"></i> Add Nationality
+                </button>
+                <button class="btn btn-rose btn-sm" id="btn-reset-sample-data" title="Restore all sample records">
+                  <i class="fa-solid fa-rotate-left"></i> Reset Sample Data
+                </button>
+              </div>
+            </div>
+            <div class="card-body">
+              <p class="text-muted small mb-3">Pre-defined master nationalities used across all reservation and guest entry forms.</p>
+              <div id="nationalities-tags-container" class="holiday-tags">
+                <!-- Dynamically populated tags -->
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL 1: DAILY RATE BREAKDOWN MATRIX -->
+  <div id="modal-daily-rates" class="modal-overlay">
+    <div class="modal-content medium">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-calendar-days text-gold"></i> Daily Accommodation Rate Matrix</h3>
+        <button class="modal-close" onclick="app.closeModal('modal-daily-rates')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Adjust the rate per night for individual accommodation dates (e.g. weekend surcharges or peak dates).</p>
+
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Night #</th>
+                <th>Stay Date</th>
+                <th>Rate Per Night (SAR)</th>
+              </tr>
+            </thead>
+            <tbody id="daily-rates-tbody">
+              <!-- JS Populated -->
+            </tbody>
+          </table>
+        </div>
+
+        <div class="daily-rates-total-box mt-3">
+          <span>Calculated Total Accommodation Price:</span>
+          <strong id="daily-rates-calculated-total" class="text-gold">0.00 SAR</strong>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btn-apply-daily-rates">Apply Custom Rates</button>
+        <button class="btn btn-secondary" onclick="app.closeModal('modal-daily-rates')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: TRAVEL AGENCY CONFIRMATION LETTER VOUCHER (WITH RATES) -->
+  <div id="modal-confirmation-letter" class="modal-overlay">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-invoice text-gold"></i> Travel Agency Confirmation Letter</h3>
+        <div class="modal-header-actions">
+          <button class="btn btn-primary btn-sm" id="btn-print-confirmation">
+            <i class="fa-solid fa-print"></i> Print / Save PDF
+          </button>
+          <button class="modal-close" onclick="app.closeModal('modal-confirmation-letter')">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body bg-light-gray">
+        <div id="confirmation-letter-paper" class="confirmation-paper">
+          <div class="document-company-header"><img src="verdan traverl.jpeg" class="document-logo" alt="Verdan Travel Company logo"><h2>Verdan Travel Company</h2><p>CR No. 7053582503 | Travel & Tourism License No. 73109830</p></div>
+          <div class="voucher-header">
+            <div class="voucher-brand">
+              <h2 class="voucher-title">TRAVEL AGENCY BOOKING CONFIRMATION</h2>
+              <span class="voucher-subtitle">Official Travel & Tourism Booking Services</span>
+            </div>
+            <div class="voucher-status-box">
+              <span id="vch-status-badge" class="badge badge-lg badge-emerald">DEFINITE BOOKING</span>
+              <div class="voucher-res-id" id="vch-system-id">RES-2026-1001</div>
+            </div>
+          </div>
+
+          <div class="voucher-ref-bar">
+            <div><strong>Hotel Ref:</strong> <span id="vch-hotel-ref">HTL-998412</span></div>
+            <div><strong>Issued Date:</strong> <span id="vch-issue-date">2026-08-05</span></div>
+            <div><strong>Booking Source:</strong> <span id="vch-source-channel">Travel Agency</span></div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-building text-gold"></i> Hotel Details</h4>
+            <div class="vch-grid cols-2">
+              <div class="vch-item">
+                <span class="vch-label">Hotel Name:</span>
+                <strong id="vch-hotel-name" class="vch-val text-gold">Makkah Clock Royal Tower (Fairmont)</strong>
+              </div>
+              <div class="vch-item">
+                <span class="vch-label">City Location:</span>
+                <span id="vch-hotel-city" class="vch-val">Makkah Al-Mukarramah</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-user text-gold"></i> Guest & Agency Details</h4>
+            <div class="vch-grid cols-3">
+              <div class="vch-item">
+                <span class="vch-label">Guest Name:</span>
+                <strong id="vch-guest-name" class="vch-val">Mohammed Al-Qahtani</strong>
+              </div>
+              <div class="vch-item">
+                <span class="vch-label">Nationality:</span>
+                <span id="vch-guest-nationality" class="vch-val">Saudi Arabia</span>
+              </div>
+              <div class="vch-item">
+                <span class="vch-label">Travel Agency Account:</span>
+                <strong id="vch-agent-name" class="vch-val text-blue">Al-Safwa Travel Co.</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-bed text-gold"></i> Stay & Multi-Room Breakdown</h4>
+            <div class="vch-grid cols-4">
+              <div class="vch-item highlight">
+                <span class="vch-label">Check-In Date:</span>
+                <strong id="vch-checkin" class="vch-val">10 Aug 2026</strong>
+              </div>
+              <div class="vch-item highlight">
+                <span class="vch-label">Check-Out Date:</span>
+                <strong id="vch-checkout" class="vch-val">15 Aug 2026</strong>
+              </div>
+              <div class="vch-item highlight">
+                <span class="vch-label">Total Nights:</span>
+                <strong id="vch-nights" class="vch-val text-blue">5 Nights</strong>
+              </div>
+              <div class="vch-item highlight">
+                <span class="vch-label">Meal Plan Included:</span>
+                <strong id="vch-meal-plan" class="vch-val text-emerald">BB - Bed & Breakfast</strong>
+              </div>
+            </div>
+
+            <!-- Itemized Financial Rooms Table -->
+            <div class="table-responsive mt-3">
+              <table class="stmt-table">
+                <thead>
+                  <tr>
+                    <th>Room Type</th>
+                    <th>Rooms Count</th>
+                    <th>Nightly Rate</th>
+                    <th>Total Line Amount</th>
+                  </tr>
+                </thead>
+                <tbody id="vch-multi-room-tbody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="financial-summary-banner mt-3">
+              <div class="fin-box"><span>Net Billed Amount</span><strong id="vch-total-billed" class="text-gold">0.00 SAR</strong></div>
+              <div class="fin-box"><span>VAT Status</span><strong id="vch-vat-status">15% Included</strong></div>
+              <div class="fin-box"><span>Payment Ledger Status</span><strong id="vch-pay-status" class="text-emerald">PAID</strong></div>
+            </div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-circle-info text-gold"></i> Remarks & Special Requests</h4>
+            <p id="vch-remarks" class="vch-text-notes">Non-smoking room requested. High floor with Haram View preferred.</p>
+          </div>
+          <div class="voucher-section mt-3"><h4 class="vch-sec-title"><i class="fa-solid fa-utensils text-gold"></i> Extra Services</h4><div id="vch-extra-services">No extra services recorded.</div></div>
+
+          <div class="voucher-footer mt-4">
+            <div class="qr-placeholder">
+              <i class="fa-solid fa-qrcode fa-3x text-gold"></i>
+              <span>Official B2B Confirmation</span>
+            </div>
+            <div class="agency-sign-off">
+              <p>GrandStay Reservation Services</p>
+              <div class="stamp-box">CONFIRMED B2B</div>
+            </div>
+          </div>
+          <p class="document-address">Madina, Al Jouma district, Abu Shoraih Al Khozami street</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: GUEST CHECK-IN VOUCHER (NO RATES SHOWN AT ALL!) -->
+  <div id="modal-guest-voucher" class="modal-overlay">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-ticket text-emerald"></i> Guest Check-In Hotel Voucher (No Rates)</h3>
+        <div class="modal-header-actions">
+          <button class="btn btn-emerald btn-sm" id="btn-print-guest-voucher">
+            <i class="fa-solid fa-print"></i> Print Guest Voucher
+          </button>
+          <button class="modal-close" onclick="app.closeModal('modal-guest-voucher')">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body bg-light-gray">
+        <!-- Guest Voucher Box -->
+        <div id="guest-voucher-paper" class="confirmation-paper guest-paper-style">
+          <div class="document-company-header"><img src="verdan traverl.jpeg" class="document-logo" alt="Verdan Travel Company logo"><h2>Verdan Travel Company</h2><p>CR No. 7053582503 | Travel & Tourism License No. 73109830</p></div>
+          <div class="voucher-header">
+            <div class="voucher-brand">
+              <h2 class="voucher-title text-emerald"><i class="fa-solid fa-hotel"></i> HOTEL CHECK-IN VOUCHER</h2>
+              <span class="voucher-subtitle">Please present this official voucher to the hotel reception upon check-in</span>
+            </div>
+            <div class="voucher-status-box">
+              <span id="g-vch-status-badge" class="badge badge-lg badge-emerald">CONFIRMED GUEST VOUCHER</span>
+              <div class="voucher-res-id" id="g-vch-system-id">RES-2026-1001</div>
+            </div>
+          </div>
+
+          <div class="voucher-ref-bar">
+            <div><strong>Hotel Booking Ref #:</strong> <strong id="g-vch-hotel-ref" class="text-gold">HTL-998412</strong></div>
+            <div><strong>Issue Date:</strong> <span id="g-vch-issue-date">2026-08-05</span></div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-building text-gold"></i> Destination Hotel Information</h4>
+            <div class="vch-grid cols-2">
+              <div class="vch-item">
+                <span class="vch-label">Hotel Name:</span>
+                <strong id="g-vch-hotel-name" class="vch-val text-gold font-lg">Makkah Clock Royal Tower (Fairmont)</strong>
+              </div>
+              <div class="vch-item">
+                <span class="vch-label">City Location:</span>
+                <strong id="g-vch-hotel-city" class="vch-val">Makkah Al-Mukarramah</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-user text-gold"></i> Guest Details</h4>
+            <div class="vch-grid cols-2">
+              <div class="vch-item">
+                <span class="vch-label">Primary Guest Full Name:</span>
+                <strong id="g-vch-guest-name" class="vch-val font-lg">Mohammed Al-Qahtani</strong>
+              </div>
+              <div class="vch-item">
+                <span class="vch-label">Guest Nationality:</span>
+                <span id="g-vch-guest-nationality" class="vch-val">Saudi Arabia</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-bed text-gold"></i> Stay Duration & Room Configuration</h4>
+            <div class="vch-grid cols-4">
+              <div class="vch-item highlight">
+                <span class="vch-label">Check-In Date:</span>
+                <strong id="g-vch-checkin" class="vch-val text-emerald">10 Aug 2026</strong>
+              </div>
+              <div class="vch-item highlight">
+                <span class="vch-label">Check-Out Date:</span>
+                <strong id="g-vch-checkout" class="vch-val text-rose">15 Aug 2026</strong>
+              </div>
+              <div class="vch-item highlight">
+                <span class="vch-label">Total Stay Nights:</span>
+                <strong id="g-vch-nights" class="vch-val text-blue">5 Nights</strong>
+              </div>
+              <div class="vch-item highlight">
+                <span class="vch-label">Meal Plan Included:</span>
+                <strong id="g-vch-meal-plan" class="vch-val text-emerald">BB - Bed & Breakfast</strong>
+              </div>
+            </div>
+
+            <!-- Itemized Room Types Table (No Prices Shown!) -->
+            <div class="table-responsive mt-3">
+              <table class="stmt-table">
+                <thead>
+                  <tr>
+                    <th>Room Type Reserved</th>
+                    <th>Number of Rooms</th>
+                    <th>Meal Inclusion</th>
+                  </tr>
+                </thead>
+                <tbody id="g-vch-multi-room-tbody">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="voucher-section mt-3">
+            <h4 class="vch-sec-title"><i class="fa-solid fa-circle-info text-gold"></i> Special Requests & Hotel Policies</h4>
+            <p id="g-vch-remarks" class="vch-text-notes">Non-smoking room requested. High floor with Haram View preferred.</p>
+
+            <div class="voucher-terms mt-3">
+              <h5>Hotel Check-In Policies:</h5>
+              <ul>
+                <li>Standard Hotel Check-In time is 16:00 and Check-Out time is 12:00 PM.</li>
+                <li>Please present valid government ID or Passport along with this voucher at reception desk.</li>
+                <li>All accommodation charges and meals are pre-arranged as per this voucher.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="voucher-footer mt-4">
+            <div class="qr-placeholder">
+              <i class="fa-solid fa-qrcode fa-3x text-emerald"></i>
+              <span>Official Guest Check-In Voucher</span>
+            </div>
+            <div class="agency-sign-off">
+              <p>GrandStay Hospitality Services</p>
+              <div class="stamp-box border-emerald text-emerald">APPROVED CHECK-IN</div>
+            </div>
+          </div>
+          <p class="document-address">Madina, Al Jouma district, Abu Shoraih Al Khozami street</p>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ADD/EDIT CLIENT -->
+  <div id="modal-client-form" class="modal-overlay">
+    <div class="modal-content medium">
+      <div class="modal-header">
+        <h3 id="client-modal-title"><i class="fa-solid fa-user-plus text-gold"></i> Add New Client / Agent</h3>
+        <button class="modal-close" onclick="app.closeModal('modal-client-form')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="client-form">
+          <input type="hidden" id="client-id-val" value="">
+
+          <div class="form-group">
+            <label for="client-name-val">Client / Travel Agent Name <span class="required">*</span></label>
+            <input type="text" id="client-name-val" class="form-control" placeholder="Enter full name or agency name" required>
+          </div>
+
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label for="client-type-val">Classification <span class="required">*</span></label>
+              <select id="client-type-val" class="form-control" required>
+                <option value="Direct Client">Direct Client</option>
+                <option value="Travel Agent">Travel Agent</option>
+                <option value="Both">Both (Direct & Agent)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="client-nat-val">Nationality <span class="required">*</span></label>
+              <select id="client-nat-val" class="form-control" required>
+                <!-- Populated via JS -->
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label for="client-mobile-val">Mobile Number <span class="required">*</span></label>
+              <input type="text" id="client-mobile-val" class="form-control" placeholder="+966 5X XXX XXXX" required>
+            </div>
+
+            <div class="form-group">
+              <label for="client-email-val">Email Address</label>
+              <input type="email" id="client-email-val" class="form-control" placeholder="agent@domain.com">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="client-address-val">Address / City</label>
+            <input type="text" id="client-address-val" class="form-control" placeholder="City, Country">
+          </div>
+
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save Client Entry</button>
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-client-form')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: ADD/EDIT HOTEL MASTER DATA -->
+  <div id="modal-hotel-form" class="modal-overlay">
+    <div class="modal-content medium">
+      <div class="modal-header">
+        <h3 id="hotel-modal-title"><i class="fa-solid fa-hotel text-gold"></i> Add New Hotel</h3>
+        <button class="modal-close" onclick="app.closeModal('modal-hotel-form')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="hotel-form">
+          <input type="hidden" id="hotel-id-val" value="">
+
+          <div class="form-group">
+            <label for="hotel-name-val">Hotel Full Name <span class="required">*</span></label>
+            <input type="text" id="hotel-name-val" class="form-control" placeholder="e.g. Dar Al Taqwa Hotel Madina" required>
+          </div>
+
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label for="hotel-city-val">City Location <span class="required">*</span></label>
+              <select id="hotel-city-val" class="form-control" required>
+                <option value="Makkah">Makkah Al-Mukarramah</option>
+                <option value="Madina">Al-Madina Al-Munawwarah</option>
+                <option value="Jeddah">Jeddah</option>
+                <option value="Riyadh">Riyadh</option>
+                <option value="Other">Other City</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="hotel-stars-val">Star Rating <span class="required">*</span></label>
+              <select id="hotel-stars-val" class="form-control" required>
+                <option value="5">5 Stars Luxury</option>
+                <option value="4">4 Stars</option>
+                <option value="3">3 Stars</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="hotel-phone-val">Contact Phone Number</label>
+            <input type="text" id="hotel-phone-val" class="form-control" placeholder="+966 12 XXX XXXX">
+          </div>
+
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save Hotel Entry</button>
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-hotel-form')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: ADD/EDIT SYSTEM USER -->
+  <div id="modal-user-form" class="modal-overlay">
+    <div class="modal-content medium">
+      <div class="modal-header">
+        <h3 id="user-modal-title"><i class="fa-solid fa-user-plus text-gold"></i> Add New System User</h3>
+        <button class="modal-close" onclick="app.closeModal('modal-user-form')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="user-form">
+          <input type="hidden" id="user-id-val" value="">
+
+          <div class="form-group">
+            <label for="user-fullname-val">Full Name <span class="required">*</span></label>
+            <input type="text" id="user-fullname-val" class="form-control" placeholder="e.g. Ahmed Al-Sabah" required>
+          </div>
+
+          <div class="form-grid cols-2">
+            <div class="form-group">
+              <label for="user-username-val">Username <span class="required">*</span></label>
+              <input type="text" id="user-username-val" class="form-control" placeholder="e.g. ahmed.sabah" required>
+            </div>
+
+            <div class="form-group">
+              <label for="user-role-val">Assigned Access Role <span class="required">*</span></label>
+              <select id="user-role-val" class="form-control" required>
+                <option value="Administrator">Administrator (Full Access)</option>
+                <option value="Reservation Agent">Reservation Agent</option>
+                <option value="Accountant">Accountant / Cashier</option>
+                <option value="View Only">View Only / Guest</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="user-email-val">Email Address</label>
+            <input type="email" id="user-email-val" class="form-control" placeholder="user@grandstay.com">
+          </div>
+          <div class="form-group">
+            <label for="user-password-val">Password <span class="required">*</span></label>
+            <input type="password" id="user-password-val" class="form-control" minlength="8" placeholder="At least 8 characters" required>
+            <span class="small text-muted">Passwords are stored locally in this demo. A secure multi-user login needs a server and hashed passwords.</span>
+          </div>
+
+          <div class="modal-footer">
+            <button type="submit" class="btn btn-primary">Save User Account</button>
+            <button type="button" class="btn btn-secondary" onclick="app.closeModal('modal-user-form')">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
