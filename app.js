@@ -199,21 +199,37 @@
 
   // Worldwide & Religious Events Calendar Data
   const HOLIDAYS_DATA = [
-    { date: '2026-08-15', title: 'Assumption Day (European Holiday Peak)', type: 'public' },
-    { date: '2026-09-23', title: 'Saudi National Day (Peak Tourism)', type: 'public' },
     { date: '2026-10-12', title: 'Mid-Term School Break (Gulf Region)', type: 'school' },
     { date: '2026-11-20', title: 'Winter School Vacation (UK & Europe)', type: 'school' },
-    { date: '2026-12-25', title: 'Christmas & Winter Holidays Worldwide', type: 'public' },
     { date: '2027-02-15', title: 'Pre-Ramadan Umrah Season Peak', type: 'religious' },
     { date: '2027-03-10', title: 'Ramadan 1448 AH Begins', type: 'religious' },
     { date: '2027-04-09', title: 'Eid Al-Fitr Holidays', type: 'religious' }
   ];
+
+  function getHolidayEvents() {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const recurring = [];
+    for (let year = today.getFullYear(); year <= today.getFullYear() + 3; year++) {
+      recurring.push(
+        { date: `${year}-01-01`, title: 'New Year', type: 'public' },
+        { date: `${year}-02-22`, title: 'Saudi Founding Day', type: 'public' },
+        { date: `${year}-08-15`, title: 'Assumption Day (European Holiday)', type: 'public' },
+        { date: `${year}-09-23`, title: 'Saudi National Day', type: 'public' },
+        { date: `${year}-12-25`, title: 'Christmas & Winter Holidays', type: 'public' }
+      );
+    }
+    return [...HOLIDAYS_DATA, ...recurring]
+      .filter(event => event.date >= todayStr)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
 
   // App Controller Class
   class PMSApp {
     constructor(cloudStore) {
       this.cloudStore = cloudStore;
       this.state = this.loadState();
+      this.removeStoredPasswords();
       this.state.paymentsMade = this.state.paymentsMade || [];
       this.currentTab = 'dashboard';
       this.tempDailyRates = [];
@@ -221,20 +237,42 @@
         { roomType: 'DBL', count: 1, costPerNight: 500, salePerNight: 750 }
       ];
       this.currentExtraServices = [];
-      this.calendarCurrentDate = new Date(2026, 7, 1);
+      this.calendarCurrentDate = new Date();
+      this.calendarFilter = 'all';
       this.init();
     }
 
     loadState() {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const storageKey = this.getStorageKey();
+      let saved = localStorage.getItem(storageKey);
+      // Carry forward the existing public-demo browser data once for the first
+      // organization opened on this browser. A populated Supabase workspace
+      // always replaces this cache during hydration.
+      if (!saved && this.cloudStore?.organizationId) {
+        saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) localStorage.setItem(storageKey, saved);
+      }
       if (saved) {
         try { return JSON.parse(saved); } catch (e) { console.error('Error loading state:', e); }
       }
       return JSON.parse(JSON.stringify(DEFAULT_STATE));
     }
 
+    getStorageKey() {
+      const organizationId = this.cloudStore?.organizationId;
+      return organizationId ? `${STORAGE_KEY}_${organizationId}` : STORAGE_KEY;
+    }
+
+    removeStoredPasswords() {
+      if (!Array.isArray(this.state.users)) return;
+      this.state.users.forEach(user => {
+        Object.keys(user).filter(key => /password/i.test(key)).forEach(key => delete user[key]);
+      });
+    }
+
     saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+      this.removeStoredPasswords();
+      localStorage.setItem(this.getStorageKey(), JSON.stringify(this.state));
       if (this.cloudStore?.organizationId) {
         this.setCloudStatus('Saving…');
         this.cloudStore.saveState(this.state)
@@ -253,21 +291,24 @@
     async hydrateCloudState() {
       try {
         const remoteState = await this.cloudStore.loadState();
-        if (remoteState && Object.keys(remoteState).length) {
+        const hasRemoteState = remoteState && Object.keys(remoteState).length;
+        if (hasRemoteState) {
           this.state = remoteState;
           this.state.paymentsMade = this.state.paymentsMade || [];
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
-        } else await this.cloudStore.saveState(this.state);
+        }
+        this.removeStoredPasswords();
+        if (!hasRemoteState) await this.cloudStore.saveState(this.state);
         this.syncAuthenticatedUser();
         this.renderUserHeaderSwitcher();
         this.applyActiveUserPermissions();
         this.populateSelectDropdowns();
         this.renderAllViews();
+        localStorage.setItem(this.getStorageKey(), JSON.stringify(this.state));
         this.setCloudStatus('All changes saved');
       } catch (error) {
         console.error('Cloud load failed:', error);
         this.setCloudStatus('Cloud data unavailable', true);
-        alert('Your session is valid, but the shared workspace could not be loaded. Please retry.');
+        throw error;
       }
     }
 
@@ -306,6 +347,17 @@
       this.renderExtraServicesTable();
       this.renderAllViews();
       this.setDefaultFormDates();
+      this.scheduleCalendarRollover();
+    }
+
+    scheduleCalendarRollover() {
+      const now = new Date();
+      const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
+      window.setTimeout(() => {
+        this.calendarCurrentDate = new Date();
+        this.renderHolidayCalendar(this.calendarFilter);
+        this.scheduleCalendarRollover();
+      }, nextDay.getTime() - now.getTime());
     }
 
     renderUserHeaderSwitcher() {
@@ -363,6 +415,8 @@
         this.switchTab('new-reservation');
       });
 
+      document.getElementById('flight-status-form').addEventListener('submit', event => this.openFlightRadarStatus(event));
+
 
       const cityTabs = document.querySelectorAll('.city-tab');
       cityTabs.forEach(tab => {
@@ -376,13 +430,15 @@
       });
 
       document.getElementById('cal-prev-month').addEventListener('click', () => {
+        this.calendarCurrentDate.setDate(1);
         this.calendarCurrentDate.setMonth(this.calendarCurrentDate.getMonth() - 1);
-        this.renderHolidayCalendar();
+        this.renderHolidayCalendar(this.calendarFilter);
       });
 
       document.getElementById('cal-next-month').addEventListener('click', () => {
+        this.calendarCurrentDate.setDate(1);
         this.calendarCurrentDate.setMonth(this.calendarCurrentDate.getMonth() + 1);
-        this.renderHolidayCalendar();
+        this.renderHolidayCalendar(this.calendarFilter);
       });
 
       document.querySelectorAll('.holiday-tags .tag').forEach(t => {
@@ -392,6 +448,21 @@
           this.renderHolidayCalendar(t.getAttribute('data-filter'));
         });
       });
+    }
+
+    openFlightRadarStatus(event) {
+      event.preventDefault();
+      const flightNumber = document.getElementById('flight-number').value.trim().toUpperCase();
+      const result = document.getElementById('flight-status-result');
+      const safeFlightNumber = flightNumber.replace(/[^A-Z0-9]/g, '');
+      if (!safeFlightNumber) return;
+      const link = document.createElement('a');
+      link.href = `https://www.flightradar24.com/data/flights/${encodeURIComponent(safeFlightNumber.toLowerCase())}`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = `Open ${safeFlightNumber} on FlightRadar24`;
+      result.className = 'flight-status-result has-flight';
+      result.replaceChildren(link);
     }
 
     switchTab(tabId) {
@@ -1221,7 +1292,8 @@
       this.renderHolidayCalendar();
     }
 
-    renderHolidayCalendar(filter = 'all') {
+    renderHolidayCalendar(filter = this.calendarFilter) {
+      this.calendarFilter = filter;
       const year = this.calendarCurrentDate.getFullYear();
       const month = this.calendarCurrentDate.getMonth();
       const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -1237,12 +1309,14 @@
         grid.innerHTML += `<div class="cal-day empty"></div>`;
       }
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const upcomingEvents = getHolidayEvents().filter(event => filter === 'all' || event.type === filter);
 
       for (let d = 1; d <= totalDays; d++) {
         const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         const isToday = dayStr === todayStr;
-        const hasEvent = HOLIDAYS_DATA.some(ev => ev.date === dayStr && (filter === 'all' || ev.type === filter));
+        const hasEvent = upcomingEvents.some(ev => ev.date === dayStr);
 
         grid.innerHTML += `
           <div class="cal-day ${isToday ? 'today' : ''} ${hasEvent ? 'has-event' : ''}">
@@ -1254,14 +1328,15 @@
       const upcomingContainer = document.getElementById('upcoming-events-container');
       upcomingContainer.innerHTML = '';
 
-      HOLIDAYS_DATA.filter(ev => filter === 'all' || ev.type === filter).slice(0, 4).forEach(ev => {
+      upcomingEvents.slice(0, 4).forEach(ev => {
         upcomingContainer.innerHTML += `
           <div class="event-item">
             <span class="event-name"><i class="fa-solid fa-star text-gold"></i> ${ev.title}</span>
-            <span class="event-date">${ev.date}</span>
+            <span class="event-date">${new Date(`${ev.date}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
           </div>
         `;
       });
+      if (!upcomingEvents.length) upcomingContainer.innerHTML = '<div class="event-item"><span class="event-name">No upcoming occasions for this filter.</span></div>';
     }
 
     // RENDER RESERVATIONS MASTER REGISTRY TABLE WITH DUAL VOUCHER BUTTONS
@@ -1993,6 +2068,11 @@
       message.textContent = text;
       message.classList.toggle('success', success);
     };
+    const setAuthBusy = busy => {
+      document.getElementById('btn-login').disabled = busy;
+      document.getElementById('btn-register').disabled = busy;
+      document.getElementById('btn-github-login').disabled = busy;
+    };
     const openApplication = async () => {
       const membership = await cloud.loadIdentity();
       if (!cloud.user) return;
@@ -2002,43 +2082,94 @@
         showMessage('');
         return;
       }
-      authScreen.hidden = true;
-      appShell.hidden = false;
       window.app = new PMSApp(cloud);
       await window.app.hydrateCloudState();
+      window.app.setCloudStatus('Connected · shared Supabase workspace');
+      authScreen.hidden = true;
+      appShell.hidden = false;
     };
+
     if (!cloud.ready) {
-      showMessage('Setup required: add your Supabase Project URL and publishable key to supabase/config.js.');
-      document.getElementById('btn-login').disabled = true;
+      showMessage('Setup required: add the Supabase Project URL and publishable key in supabase/config.js.');
+      setAuthBusy(true);
       return;
     }
+
     loginForm.addEventListener('submit', async event => {
       event.preventDefault();
-      const button = document.getElementById('btn-login');
-      button.disabled = true;
+      setAuthBusy(true);
       showMessage('Signing in…', true);
       try {
-        await cloud.signIn(document.getElementById('login-email').value, document.getElementById('login-password').value);
+        await cloud.signIn(document.getElementById('login-email').value.trim(), document.getElementById('login-password').value);
         await openApplication();
       } catch (error) {
         showMessage(error.message || 'Unable to sign in.');
-      } finally { button.disabled = false; }
+      } finally { setAuthBusy(false); }
     });
+
+    document.getElementById('btn-register').addEventListener('click', async () => {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if (!loginForm.reportValidity()) return;
+      setAuthBusy(true);
+      showMessage('Creating account…', true);
+      try {
+        const { data, error } = await cloud.client.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: email.split('@')[0] }, emailRedirectTo: window.location.origin }
+        });
+        if (error) throw error;
+        if (data.session) await openApplication();
+        else showMessage('Account created. Check your email for the confirmation link, then sign in.', true);
+      } catch (error) {
+        showMessage(error.message || 'Unable to create account.');
+      } finally { setAuthBusy(false); }
+    });
+
+    document.getElementById('btn-github-login').addEventListener('click', async () => {
+      setAuthBusy(true);
+      showMessage('Redirecting to GitHub…', true);
+      try {
+        const { error } = await cloud.client.auth.signInWithOAuth({
+          provider: 'github',
+          options: { redirectTo: window.location.origin }
+        });
+        if (error) throw error;
+      } catch (error) {
+        showMessage(error.message || 'GitHub sign-in failed.');
+        setAuthBusy(false);
+      }
+    });
+
     organizationForm.addEventListener('submit', async event => {
       event.preventDefault();
+      const button = organizationForm.querySelector('button[type="submit"]');
+      button.disabled = true;
       try {
-        await cloud.createOrganization(document.getElementById('organization-name').value);
+        await cloud.createOrganization(document.getElementById('organization-name').value.trim());
+        loginForm.hidden = false;
+        onboarding.hidden = true;
         await openApplication();
-      } catch (error) { showMessage(error.message || 'Unable to create workspace.'); }
+      } catch (error) {
+        document.getElementById('organization-message').textContent = error.message || 'Unable to create workspace.';
+      } finally { button.disabled = false; }
     });
+
+    document.getElementById('btn-onboarding-signout').addEventListener('click', async () => {
+      await cloud.signOut();
+      window.location.reload();
+    });
+
     document.getElementById('btn-logout').addEventListener('click', async () => {
       await cloud.signOut();
       window.location.reload();
     });
-    cloud.client.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') window.location.reload();
+
+    cloud.client.auth.getSession().then(({ data, error }) => {
+      if (error) showMessage(error.message || 'Unable to restore your session.');
+      else if (data.session) openApplication().catch(authError => showMessage(authError.message || 'Unable to load the shared workspace.'));
     });
-    openApplication().catch(error => showMessage(error.message || 'Unable to restore your session.'));
   });
 
 })();

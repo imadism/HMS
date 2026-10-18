@@ -20,23 +20,28 @@
     <div class="auth-card">
       <div class="auth-logo"><i class="fa-solid fa-hotel"></i></div>
       <h1>GrandStay</h1>
-      <p class="auth-subtitle">Sign in to your team workspace</p>
+      <p class="auth-subtitle">Sign in or register for your shared workspace</p>
       <form id="login-form" class="auth-form">
         <label for="login-email">Email address</label>
         <input id="login-email" class="form-control" type="email" autocomplete="email" required>
         <label for="login-password">Password</label>
-        <input id="login-password" class="form-control" type="password" autocomplete="current-password" required>
+        <input id="login-password" class="form-control" type="password" autocomplete="current-password" minlength="8" required>
         <p id="auth-message" class="auth-message" role="status"></p>
         <button id="btn-login" class="btn btn-primary auth-submit" type="submit">Sign in</button>
+        <button id="btn-register" class="btn btn-secondary auth-submit" type="button">Create account with email</button>
+        <div class="auth-divider"><span>or</span></div>
+        <button id="btn-github-login" class="btn btn-github auth-submit" type="button"><i class="fa-brands fa-github"></i> Continue with GitHub</button>
       </form>
       <div id="organization-onboarding" class="organization-onboarding" hidden>
-        <h2>Create your workspace</h2>
-        <p>This account is not linked to a company workspace yet.</p>
+        <h2>Create your shared workspace</h2>
+        <p>This account is not linked to a workspace. If you are setting up the company, create its workspace. If you are joining an existing company, ask its administrator to add your account.</p>
         <form id="organization-form" class="auth-form">
+          <p id="organization-message" class="auth-message" role="status"></p>
           <label for="organization-name">Company name</label>
           <input id="organization-name" class="form-control" type="text" minlength="2" maxlength="120" required>
           <button class="btn btn-primary auth-submit" type="submit">Create workspace</button>
         </form>
+        <button id="btn-onboarding-signout" class="btn btn-secondary auth-submit" type="button">Sign out</button>
       </div>
     </div>
   </section>
@@ -126,7 +131,7 @@
             </select>
           </div>
 
-          <span id="cloud-sync-status" class="cloud-sync-status">Cloud sync ready</span>
+          <span id="cloud-sync-status" class="cloud-sync-status">Sign in to your shared workspace</span>
           <button class="btn btn-secondary btn-sm" id="btn-logout" type="button"><i class="fa-solid fa-right-from-bracket"></i> Sign out</button>
 
 
@@ -174,6 +179,26 @@
               <h3 id="kpi-payments-received">0.00 SAR</h3>
               <span class="kpi-subtitle" id="kpi-pending-balance">0.00 SAR Ledger Pending</span>
             </div>
+          </div>
+        </div>
+        <div class="card flight-status-card">
+          <div class="card-header">
+            <div class="card-header-title">
+              <i class="fa-solid fa-plane text-blue"></i>
+              <h3>FlightRadar24 Flight Lookup</h3>
+            </div>
+            <span class="badge"><i class="fa-solid fa-globe"></i> Free lookup · No API key</span>
+          </div>
+          <div class="card-body">
+            <form id="flight-status-form" class="flight-status-form">
+              <div class="flight-search-field">
+                <label for="flight-number">Flight number</label>
+                <input id="flight-number" class="form-control" type="text" placeholder="e.g. SV104" autocomplete="off" required maxlength="12">
+              </div>
+              <button id="flight-status-submit" class="btn btn-primary" type="submit"><i class="fa-solid fa-arrow-up-right-from-square"></i> View on FlightRadar24</button>
+            </form>
+            <p class="flight-status-help">Enter a flight number to open its FlightRadar24 page. Flight tracking and availability are provided by FlightRadar24.</p>
+            <div id="flight-status-result" class="flight-status-result" role="status" aria-live="polite">No API key needed.</div>
           </div>
         </div>
         <!-- Dashboard Split Row: Market Stats & Worldwide Holiday Calendar -->
@@ -1577,7 +1602,7 @@
           <div class="form-group">
             <label for="user-password-val">Password <span class="required">*</span></label>
             <input type="password" id="user-password-val" class="form-control" minlength="8" placeholder="At least 8 characters" required>
-            <span class="small text-muted">Passwords are stored locally in this demo. A secure multi-user login needs a server and hashed passwords.</span>
+            <span class="small text-muted">Create login accounts in Supabase Authentication. Never store passwords in this workspace.</span>
           </div>
 
           <div class="modal-footer">
